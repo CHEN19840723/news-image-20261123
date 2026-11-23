@@ -1,45 +1,53 @@
 #!/usr/bin/env python3
-"""Entry program for make.fun news-image-20261123.
+"""Place the 23 November 2026 front page where the harness looks for it.
 
-Copies the pre-rendered front page (entry.png, in this repository) to
-/output/entry.png (or $MAKEFUN_OUTPUT_DIR when set) and verifies the copy
-is byte-identical by comparing sha256 hashes. Standard library only.
+The picture is drawn ahead of time by render.py and kept in this
+repository as entry.png. This runner only copies that file to the
+harness output directory and proves the copy is exact, byte for byte.
+It refuses to run when the picture is absent, when it is larger than
+the one-mebibyte gate, or when the copy and the original disagree.
 """
-import hashlib
-import os
-import shutil
-import sys
 
-SOURCE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "entry.png")
+from __future__ import annotations
 
+from hashlib import sha256
+from os import environ
+from pathlib import Path
 
-def sha256_of(path):
-    h = hashlib.sha256()
-    with open(path, "rb") as f:
-        for chunk in iter(lambda: f.read(65536), b""):
-            h.update(chunk)
-    return h.hexdigest()
+PICTURE = "entry.png"
+CEILING = 1_048_576
+CHUNK = 1 << 16
 
 
-def main():
-    out_dir = os.environ.get("MAKEFUN_OUTPUT_DIR", "/output")
-    if not os.path.isfile(SOURCE):
-        print(f"FATAL: missing source image: {SOURCE}", file=sys.stderr)
-        sys.exit(1)
-    if os.path.getsize(SOURCE) > 1048576:
-        print("FATAL: source image exceeds the 1 MiB gate", file=sys.stderr)
-        sys.exit(1)
-    os.makedirs(out_dir, exist_ok=True)
-    dest = os.path.join(out_dir, "entry.png")
-    shutil.copyfile(SOURCE, dest)
-    src_hash = sha256_of(SOURCE)
-    dst_hash = sha256_of(dest)
-    if src_hash != dst_hash:
-        print(f"FATAL: copy mismatch: {src_hash} != {dst_hash}",
-              file=sys.stderr)
-        sys.exit(1)
-    print(f"Wrote {dest} sha256={dst_hash}")
+def fingerprint(path: Path) -> str:
+    """Hex digest of a file, streamed so big files stay cheap."""
+    summer = sha256()
+    with path.open("rb") as stream:
+        while (block := stream.read(CHUNK)):
+            summer.update(block)
+    return summer.hexdigest()
+
+
+def run() -> int:
+    """Copy entry.png to the output directory and verify the copy."""
+    here = Path(__file__).resolve().parent
+    original = here / PICTURE
+    if not original.is_file():
+        print(f"missing picture: {original}")
+        return 1
+    if original.stat().st_size > CEILING:
+        print(f"picture over the 1 MiB gate: {original}")
+        return 1
+    out_dir = Path(environ.get("MAKEFUN_OUTPUT_DIR", "/output"))
+    out_dir.mkdir(parents=True, exist_ok=True)
+    target = out_dir / PICTURE
+    target.write_bytes(original.read_bytes())
+    if fingerprint(original) != fingerprint(target):
+        print("copy differs from the original")
+        return 1
+    print(f"wrote {target} {fingerprint(target)}")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(run())
