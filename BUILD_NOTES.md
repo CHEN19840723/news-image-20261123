@@ -102,7 +102,9 @@ the Wellington Test's day 5, played Monday in New Zealand — is dated
   20261122).
 - Repo: https://github.com/CHEN19840723/news-image-20261123 (public,
   created after the competition opened 2026-11-23T00:00:00Z).
-- Commit: (filled in after push — see final HEAD below).
+- Commit: e808faf614046b837a4618d377e15e08ac5e4d23 (first commit; BUILD_NOTES
+  updated in a follow-up commit — final HEAD below).
+- Final HEAD: (filled after the BUILD_NOTES update commit).
 - LICENSE: MIT, first line "SPDX-License-Identifier: MIT",
   Copyright (c) 2026 CHEN19840723.
 - Repo About set (description, homepage
